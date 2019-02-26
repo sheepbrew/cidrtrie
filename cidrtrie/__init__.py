@@ -80,10 +80,13 @@ class Trie(object):
                 current = current[character]
             else:
                 current = current.add_child(character)
-        if current.terminal:
-            raise DuplicateKeyError(string)
-        current.terminal = True
-        current.data = data
+
+        # sheep: replaced this with a list and removed duplicate checking
+        if not current.terminal:
+            current.data = list()
+            current.terminal = True
+
+        current.data.append(data)
 
     def find(self, string, mode=MODE_LONGEST_PREFIX):
         """Find a string in the Trie.
@@ -127,7 +130,7 @@ def _ip_to_binary_string(ip):
     return binary
 
 
-CidrResult = collections.namedtuple('CidrResult', ['base', 'mask', 'data'])
+CidrResult = collections.namedtuple('CidrResult', ['base', 'mask', 'next_hop'])
 
 
 class CidrClassifier(object):
@@ -135,19 +138,24 @@ class CidrClassifier(object):
     def __init__(self):
         self.trie = Trie()
 
-    def add_mapping(self, base, mask, value):
+    def add_mapping(self, base, mask, next_hop):
         """Add a mapping that base/mask -> value"""
         string = _ip_to_binary_string(base)[:mask]
-        self.trie.insert(string, (mask, value))
+        # sheep: we don't need to store the mask, because we can calculate this from len of prefix
+        self.trie.insert(string, next_hop)
 
     def lookup(self, ip, return_unroutable=False):
         """Look up an IP's value"""
         string = _ip_to_binary_string(ip)
         try:
-            prefix, (mask, data) = self.trie.find(string)
+            prefix, data = self.trie.find(string)
+            # sheep: get the mask back since we didn't store it explicitly
+            mask = len(prefix)
+
             prefix = prefix + '0'*(32 - len(prefix))
             prefix = int(prefix, 2)
             prefix = socket.inet_ntoa(struct.pack('!L', prefix))
+            
             return CidrResult(prefix, mask, data)
         except KeyError:
             if return_unroutable:
