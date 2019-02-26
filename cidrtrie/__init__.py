@@ -88,9 +88,19 @@ class Trie(object):
 
         current.data.append(data)
 
-    def find(self, string, mode=MODE_LONGEST_PREFIX):
-        """Find a string in the Trie.
+    def remove(self, string, data=None):
+        """Remove a next-hop entry"""
+        # find returns both the path (nodes iterated through),
+        # but we only need the node
+        path, node = self.find_node(string, self.MODE_EXACT_ONLY)
 
+        node.data.remove(data)
+        if not node.data:
+            # being lazy and not checking if the rest of the tree can be pruned or not
+            node.terminal = False
+
+    def find_node(self, string, mode=MODE_LONGEST_PREFIX):
+        """ Returns the node
         :param mode: one of SHORTEST_PREFIX, LONGEST_PREFIX, EXACT_ONLY
           SHORTEST_PREFIX finds the *first* matching terminal noode
           LONGEST_PREFIX behaves like IP routing and uses the most specific
@@ -106,23 +116,35 @@ class Trie(object):
                 current = current[character]
                 path.append(current)
                 if current.terminal and mode == self.MODE_SHORTEST_PREFIX:
-                    return ''.join(p.value for p in path), current.data
+                    return ''.join(p.value for p in path), current
             else:
                 break
         else:
             # got to the end without breaking == we found it exactly
             if current.terminal:
-                return ''.join(p.value for p in path), current.data
+                return ''.join(p.value for p in path), current
         # crap, we reached a node that doesn't match somewhere. backtrack to
         # find the last terminal node in the path
         if mode == self.MODE_LONGEST_PREFIX:
             for i in reversed(range(len(path))):
                 if path[i].terminal:
-                    return ''.join(p.value for p in path[:i+1]), path[i].data
+                    return ''.join(p.value for p in path[:i+1]), path[i]
             if self.root.terminal:
-                return '', self.root.data
+                return '', self.root
         raise KeyError(string)
+        
 
+    def find(self, string, mode=MODE_LONGEST_PREFIX):
+        """Find a string in the Trie.
+
+        :param mode: one of SHORTEST_PREFIX, LONGEST_PREFIX, EXACT_ONLY
+          SHORTEST_PREFIX finds the *first* matching terminal noode
+          LONGEST_PREFIX behaves like IP routing and uses the most specific
+            prefix
+          EXACT_MATCH is for when you want to use this to back a dictionary
+        """
+        path, node = self.find_node(string)
+        return path, node.data
 
 def _ip_to_binary_string(ip):
     integer = struct.unpack('!L', socket.inet_aton(ip))[0]
@@ -143,6 +165,10 @@ class CidrClassifier(object):
         string = _ip_to_binary_string(base)[:mask]
         # sheep: we don't need to store the mask, because we can calculate this from len of prefix
         self.trie.insert(string, next_hop)
+
+    def remove_mapping(self, base, mask, next_hop):
+        string = _ip_to_binary_string(base)[:mask]
+        self.trie.remove(string, next_hop)
 
     def lookup(self, ip, return_unroutable=False):
         """Look up an IP's value"""

@@ -31,8 +31,25 @@ class CidrClassifierTestCase(unittest.TestCase):
         self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 24, ['HopA', 'HopB']))
 
         # non-ECMP path because of different mask
-        c.add_mapping('10.0.0.0', 24, 'HopA')
-        c.add_mapping('10.0.0.0', 25, 'HopC')
-        self.assertEqual(c.lookup('10.0.0.1'), ('10.0.0.0', 25, ['HopC']))
+        c.add_mapping('192.168.0.0', 26, 'HopA')
+        c.add_mapping('192.168.0.0', 27, 'HopC')
+        self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 27, ['HopC']))
+
+        c.remove_mapping('192.168.0.0', 27, 'HopC')
+        self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 26, ['HopA']))
+
+        c.remove_mapping('192.168.0.0', 26, 'HopA')
+        self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 24, ['HopA', 'HopB']))
+
+        c.remove_mapping('192.168.0.0', 24, 'HopB')
+        self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 24, ['HopA']))
+
+        c.add_mapping('192.168.0.0', 24, 'HopC')
+        self.assertEqual(c.lookup('192.168.0.1'), ('192.168.0.0', 24, ['HopA', 'HopC']))
+
+        c.remove_mapping('192.168.0.0', 24, 'HopA')
+        c.remove_mapping('192.168.0.0', 24, 'HopC')
+
+        self.assertRaises(KeyError, lambda: c.lookup('192.168.0.0'))
 
 # vim: set textwidth=120:
