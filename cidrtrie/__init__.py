@@ -54,7 +54,10 @@ class _TrieNode(object):
         return new_node
 
     def __repr__(self):
-        return 'TrieNode(%r, terminal=%r) @ %s' % (self.value, self.terminal, id(self))
+        return 'TrieNode(%r, terminal=%r, data=%r, children=%r) @ %s' % (self.value, self.terminal, self.data, self.children, id(self))
+
+    # def __repr__(self):
+    #     return 'TrieNode(%r, terminal=%r) @ %s' % (self.value, self.terminal, id(self))
 
 
 class Trie(object):
@@ -146,10 +149,36 @@ class Trie(object):
         path, node = self.find_node(string)
         return path, node.data
 
+    def list_all(self):
+        self._list_all(self.root)
+                    
+    def _list_all(self, root, path=list()):
+        if root is None:
+            return
+
+        if root.terminal:
+            # print(_binary_to_ip_string(''.join(path)))
+            print(''.join(path))
+        
+        # swap the order of these two for sort order
+        # i.e. bottom (more specific) to top (less specific)
+        for char, child in root.children.items():
+            self._list_all(child, list(path + [char]))
+        
+
 def _ip_to_binary_string(ip):
     integer = struct.unpack('!L', socket.inet_aton(ip))[0]
     binary = bin(integer)[2:].zfill(32)
     return binary
+
+def _binary_to_ip_string(ip):
+    mask = len(ip)
+
+    prefix = ip + '0'*(32 - len(ip))
+    prefix = int(prefix, 2)
+    prefix = socket.inet_ntoa(struct.pack('!L', prefix))
+
+    return prefix, mask
 
 
 CidrResult = collections.namedtuple('CidrResult', ['base', 'mask', 'next_hop'])
@@ -169,6 +198,9 @@ class CidrClassifier(object):
     def remove_mapping(self, base, mask, next_hop):
         string = _ip_to_binary_string(base)[:mask]
         self.trie.remove(string, next_hop)
+
+    def show_mapping(self):
+        self.trie.list_all()
 
     def lookup(self, ip, return_unroutable=False):
         """Look up an IP's value"""
