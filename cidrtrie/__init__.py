@@ -150,20 +150,19 @@ class Trie(object):
         return path, node.data
 
     def list_all(self):
-        self._list_all(self.root)
+        entries = list()
+        self._list_all(self.root, entries)
+        return entries
                     
-    def _list_all(self, root, path=list()):
+    def _list_all(self, root, entries, path=list()):
         if root is None:
             return
 
         if root.terminal:
-            # print(_binary_to_ip_string(''.join(path)))
-            print(''.join(path))
-        
-        # swap the order of these two for sort order
-        # i.e. bottom (more specific) to top (less specific)
+            entries.append((''.join(path), root.data))
+
         for char, child in root.children.items():
-            self._list_all(child, list(path + [char]))
+            self._list_all(child, entries, list(path + [char]))
         
 
 def _ip_to_binary_string(ip):
@@ -199,21 +198,24 @@ class CidrClassifier(object):
         string = _ip_to_binary_string(base)[:mask]
         self.trie.remove(string, next_hop)
 
-    def show_mapping(self):
-        self.trie.list_all()
+    def show_all_mappings(self):
+        mappings = self.trie.list_all()
+
+        for index, entry in enumerate(mappings):
+            # unpack the ip addesses
+            (ip, data) = entry
+            base, mask = _binary_to_ip_string(ip)
+            mappings[index] = CidrResult(base, mask, data)
+
+        return mappings
 
     def lookup(self, ip, return_unroutable=False):
         """Look up an IP's value"""
         string = _ip_to_binary_string(ip)
         try:
             prefix, data = self.trie.find(string)
-            # sheep: get the mask back since we didn't store it explicitly
-            mask = len(prefix)
+            prefix, mask = _binary_to_ip_string(prefix)
 
-            prefix = prefix + '0'*(32 - len(prefix))
-            prefix = int(prefix, 2)
-            prefix = socket.inet_ntoa(struct.pack('!L', prefix))
-            
             return CidrResult(prefix, mask, data)
         except KeyError:
             if return_unroutable:

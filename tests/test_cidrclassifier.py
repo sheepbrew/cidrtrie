@@ -52,4 +52,12 @@ class CidrClassifierTestCase(unittest.TestCase):
 
         self.assertRaises(KeyError, lambda: c.lookup('192.168.0.0'))
 
+        c.add_mapping('10.0.0.0', 8, 'HopA')
+        c.add_mapping('10.0.0.0', 12, 'HopA')
+        c.add_mapping('10.0.0.0', 12, 'HopB')
+        c.add_mapping('192.168.0.0', 16, 'HopA')
+
+        # self.assertEqual(c.show_mapping(), )
+        print(c.show_all_mappings())
+
 # vim: set textwidth=120:
